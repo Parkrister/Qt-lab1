@@ -62,7 +62,7 @@ public:
 
 class BlurFilter : public MatrixFilter {
 public:
-	BlurFilter(std::size_t radius = 1) : MatrixFilter(BlurKernel(radius)) {}
+	BlurFilter(std::size_t radius = 2) : MatrixFilter(BlurKernel(radius)) {}
 };
 
 class GaussianKernel : public Kernel {
@@ -126,44 +126,10 @@ class SobelKernel : public Kernel {
 	float Gx = 0, Gy = 0;
 	SobelKernel(std::size_t radius = 1) : Kernel(radius) {
 		int signed_radius = static_cast<int>(radius);
-		for (int x = -signed_radius; x <= signed_radius; x++)
-			for (int y = -signed_radius; y <= signed_radius; y++) {
-				std::size_t idx = (x + radius) * getSize() + (y + radius);
-				switch (idx)
-				{
-				case 0:
-					Gx -= data[idx];
-					Gy -= data[idx];
-					break;
-				case 1:
-					Gx -= 2 * data[idx];
-					break;
-				case 2:
-					Gx -= data[idx];
-					Gy += data[idx];
-					break;
-				case 3:
-					Gy -= 2 * data[idx];
-					break;
-				case 4:
-					break;
-				case 5:
-					Gy += 2 * data[idx];
-					break;
-				case 6:
-					Gx += data[idx];
-					Gy -= data[idx];
-					break;
-				case 7:
-					Gx += 2 * data[idx];
-					break;
-				case 8:
-					Gx += data[idx];
-					Gy += data[idx];
-					break;
-				default:
-					break;
-				}
-			}
+		Gx[3][3] = { -1, 0, 1, -2, 0, 2, -1, 0, 1 };
+		Gy[3][3] = { 1, 2, 1, 0, 0, 0, -1, -2, -1 };
+		for (i = 0; i < 9; i++) {
+			data[i] = sqrt(pow(Gx, 2) + pow(Gy, 2));
+		}
 	}
 };
