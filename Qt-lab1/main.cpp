@@ -4,7 +4,7 @@
 #include "Filter.h"
 #include <iostream>
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     QCoreApplication a(argc, argv);
     std::string s;
@@ -19,26 +19,36 @@ int main(int argc, char *argv[])
     std::cout << s << std::endl;
 
     img.load(QString(s.c_str()));
-    //img.save("Images/Source.png");
+    img.save("Images/Source.png");
 
     InvertFilter invert;
-    //invert.process(img).save("Images/Invert.png");
+    //invert.process(img).save("Images_2/Invert.png");
 
     BlurFilter blur;
-   // blur.process(img).save("Images/Blur.png");
+     //blur.process(img).save("Images_2/Blur.png");
 
     GaussianFilter gaus;
-    //gaus.process(img).save("Images/Gauss.png");
+    //gaus.process(img).save("Images_2/Gauss.png");
 
     GrayScale gs;
-    //gs.process(img).save("Images/GrayScale.png");
+    //gs.process(img).save("Images_2/GrayScale.png");
 
     Sepia sep(10);
-    //sep.process(img).save("Images/Sepia.png");
+    //sep.process(img).save("Images_2/Sepia.png");
 
     Brighter br(50);
-    br.process(img).save("Images/Brighter.png");
+    //br.process(img).save("Images_2/Brighter.png");
+
+    SharpFilter sh;
+    //sh.process(img).save("Images_2/Sharpness.png");
+
+    SobelFilter sobel;
+    sobel.process(img).save("Images_2/Sobel.png");
+
+    GrayWorld grayWorld;
+    grayWorld.GrayWorld::process(img).save("Images_2/GrayWorld.png");
 
     puts("done");
+    return 0;
     return a.exec();
 }
