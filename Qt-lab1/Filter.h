@@ -124,10 +124,10 @@ public:
 //---- Матричные фильтры ----//
 
 // собель
-class SobelKernel : public Kernel {
+class SobelKernelX : public Kernel {
 public:
 	using Kernel::Kernel;
-	SobelKernel(std::size_t radius = 1) : Kernel(radius) {
+	SobelKernelX(std::size_t radius = 1) : Kernel(radius) {
 		//int Gx[3][3] = { {-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1} };
 		//int Gy[3][3] = { {1, 2, 1}, {0, 0, 0}, {-1, -2, -1} };
 		//for (int i = 0; i < 9; i++) {
@@ -140,9 +140,21 @@ public:
 	}
 };
 
+class SobelKernelY : public Kernel {
+public:
+	using Kernel::Kernel;
+	SobelKernelY(std::size_t radius = 1) : Kernel(radius) {
+
+		data[0] = -1; data[1] = -2; data[2] = -1;
+		data[3] = 0; data[4] = 0; data[5] = 0;
+		data[6] = 1; data[7] = 2; data[8] = 1;
+	}
+};
+
 class SobelFilter : public MatrixFilter {
 public:
 	SobelFilter(std::size_t radius = 1) : MatrixFilter(SobelKernel(radius)) {}
+	QImage process(const QImage& img);
 };
 
 // резкость
@@ -179,9 +191,48 @@ public:
 	QColor calcNewPixelColor(const QImage& img, int x, int y) const override;
 };
 
+// линейное растяжение гистограммы
 class Autolevels : public Filter {
 public:
 	int maxR, minR;
 	int maxG, minG;
 	int maxB, minB;
+	AutoLevels() : Filter() {
+		maxR = 255;
+		minR = 0;
+		maxG = 255;
+		minG = 0;
+		maxB = 255;
+		minB = 0;
+	}
+	QImage process(const QImage& img);
+	QColor calcNewPixelColor(const QImage& img, int x, int y) const override;
 };
+
+// перенос
+class Transfer : public Filter {
+	QColor calcNewPixelColor(const QImage& img, int x, int y) const override;
+};
+
+// wave
+class Wave2 : public Filter {
+	QColor calcNewPixelColor(const QImage& img, int x, int y) const override;
+};
+
+// sharpness
+class SharpnessKernel : public Kernel {
+public:
+	using Kernel::Kernel;
+	SharpnessKernel(std::size_t radius = 1) : Kernel(radius) {
+		data[0] = -1; data[1] = -1; data[2] = -1;
+		data[3] = -1; data[4] = 9; data[5] = -1;
+		data[6] = -1; data[7] = -1; data[8] = -1;
+	}
+};
+
+class SharpnessFilter : public MatrixFilter {
+public:
+	SharpnessFilter(std::size_t radius = 1) : MatrixFilter(SharpnessKernel(radius)) {}
+};
+
+// оператор Щарра

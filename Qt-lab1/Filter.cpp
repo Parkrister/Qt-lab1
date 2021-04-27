@@ -1,5 +1,7 @@
 #include "Filter.h"
 
+#define pi (3.14)
+
 template <class T>
 T clamp(T value, T max, T min) {
 	if (value > max)
@@ -104,3 +106,61 @@ QColor GrayWorld::calcNewPixelColor(const QImage& img, int x, int y) const {
 		(int)(color.blue()*avg/avgB, 255.f, 0.f));
 	return color;
 }
+
+// линейное растяжение гистограммы
+QImage AutoLevels::process(const QImage& img) {
+	QImage result(img);
+	int Size = img.width() * img.height();
+	for (int x = 0; x < img.width(); x++)
+		for (int y = 0; y < img.height(); y++) {
+
+			if (img.pixelColor(x, t).red() > maxR)
+				maxR = img.pixelColor(x, t).red();
+			if (img.pixelColor(x, t).red() < minR)
+				minR = img.pixelColor(x, t).red();
+
+			if (img.pixelColor(x, t).green() > maxG)
+				maxG = img.pixelColor(x, t).green();
+			if (img.pixelColor(x, t).green() < minG)
+				minG = img.pixelColor(x, t).green();
+
+			if (img.pixelColor(x, t).blue() > maxB)
+				maxB = img.pixelColor(x, t).blue();
+			if (img.pixelColor(x, t).blue() < minB)
+				minB = img.pixelColor(x, t).blue();
+		}
+
+	for (int x = 0; x < img.width() / 2; x++)
+		for (int y = 0; y < img.height(); y++) {
+			QColor color = calcNewPixelColor(img, x, y);
+			result.setPixelColor(x, y, color);
+		}
+	return result;
+}
+
+QColor AutoLevels::calcNewPixelColor(const QImage& img, int x, int y) const {
+	QColor color = img.pixelColor(x, y);
+	color.setRgb(clamp((color.red() - minR) * 255 / (maxR - minR), 255.f, 0.f),
+		clamp((color.green() - minG) * 255 / (maxG - minG), 255.f, 0.f),
+		clamp((color.blue() - minB) * 255 / (maxB - minB), 255.f, 0.f));
+	return color;
+}
+
+// transfer
+QColor Transfer::calcNewPixelColor(const QImage& img, int x, int y) const {
+	QColor color;
+	if (x > img.width() - 50) {
+		color.setRgb(0, 0, 0);
+		return color;
+	}
+	color = img.pixelColor(x + 50, y);
+	return color;
+}
+
+// Wave
+QColor Wave2::calcNewPixelColor(const QImage& img, int x, int y) const {
+	int k = x + 20 * sin(2 * pi * x / 30);
+	QColor color = img.pixelColor(k, y);
+	return color;
+}
+
