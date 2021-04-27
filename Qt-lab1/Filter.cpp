@@ -81,7 +81,7 @@ QImage GrayWorld::process(const QImage& img) {
 		for (int y = 0; y < img.height(); y++) {
 			avgR += img.pixelColor(x, y).red();
 			avgG += img.pixelColor(x, y).green();
-			avgG += img.pixelColor(x, y).blue();
+			avgB += img.pixelColor(x, y).blue();
 		}
 	avgR = avgR / Size;
 	avgG = avgG / Size;
@@ -93,6 +93,7 @@ QImage GrayWorld::process(const QImage& img) {
 			QColor color = calcNewPixelColor(img, x, y);
 			result.setPixelColor(x, y, color);
 		}
+	std::cout << avgR << ' ' << avgG << ' ' << avgB << '\n';
 	return result;
 }
 

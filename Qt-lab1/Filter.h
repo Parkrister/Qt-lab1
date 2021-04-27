@@ -1,6 +1,7 @@
 #pragma once
 #include <QImage>
 #include <math.h>
+#include <iostream>
 
 class Filter
 {
@@ -176,4 +177,11 @@ public:
 	}
 	QImage process(const QImage& img);
 	QColor calcNewPixelColor(const QImage& img, int x, int y) const override;
+};
+
+class Autolevels : public Filter {
+public:
+	int maxR, minR;
+	int maxG, minG;
+	int maxB, minB;
 };
