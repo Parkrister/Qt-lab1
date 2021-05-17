@@ -2,6 +2,9 @@
 #include <QImage>
 #include <math.h>
 #include <iostream>
+#include <algorithm>
+#include <time.h>
+#include <fstream>
 
 class Filter
 {
@@ -40,6 +43,19 @@ public:
 	std::size_t getSize() const { return 2 * radius + 1; }
 	float operator[] (std::size_t id) const { return data[id]; }
 	float& operator[] (std::size_t id) { return data[id]; }
+
+	void SetKernel(float* dataK, int rad)
+	{
+		radius = rad;
+		std::size_t len = getLen();
+		if (data)
+		{
+			data.reset();
+		}
+		data = std::make_unique<float[]>(len);
+		std::copy(dataK, dataK + len, data.get());
+	}
+
 };
 
 class MatrixFilter : public Filter {
@@ -124,10 +140,10 @@ public:
 //---- Матричные фильтры ----//
 
 // собель
-class SobelKernelX : public Kernel {
+class SobelKernel : public Kernel {
 public:
 	using Kernel::Kernel;
-	SobelKernelX(std::size_t radius = 1) : Kernel(radius) {
+	SobelKernel(std::size_t radius = 1) : Kernel(radius) {
 		//int Gx[3][3] = { {-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1} };
 		//int Gy[3][3] = { {1, 2, 1}, {0, 0, 0}, {-1, -2, -1} };
 		//for (int i = 0; i < 9; i++) {
@@ -140,21 +156,9 @@ public:
 	}
 };
 
-class SobelKernelY : public Kernel {
-public:
-	using Kernel::Kernel;
-	SobelKernelY(std::size_t radius = 1) : Kernel(radius) {
-
-		data[0] = -1; data[1] = -2; data[2] = -1;
-		data[3] = 0; data[4] = 0; data[5] = 0;
-		data[6] = 1; data[7] = 2; data[8] = 1;
-	}
-};
-
 class SobelFilter : public MatrixFilter {
 public:
 	SobelFilter(std::size_t radius = 1) : MatrixFilter(SobelKernel(radius)) {}
-	QImage process(const QImage& img);
 };
 
 // резкость
@@ -173,7 +177,7 @@ public:
 	SharpFilter(std::size_t radius = 1) : MatrixFilter(SharpKernel(radius)) {}
 };
 
-// серый мир
+// ----------------- GrayWorld -----------------//
 class GrayWorld : public Filter {
 public:
 	float avg;
@@ -191,48 +195,189 @@ public:
 	QColor calcNewPixelColor(const QImage& img, int x, int y) const override;
 };
 
-// линейное растяжение гистограммы
-class Autolevels : public Filter {
+
+class LinealStretching : public Filter
+{
+protected:
+	float maxR, maxG, maxB;
+	float minR, minG, minB;
+	QColor calcNewPixelColor(const QImage& img, int x, int y) const override;
 public:
-	int maxR, minR;
-	int maxG, minG;
-	int maxB, minB;
-	AutoLevels() : Filter() {
-		maxR = 255;
-		minR = 0;
-		maxG = 255;
-		minG = 0;
-		maxB = 255;
-		minB = 0;
+	LinealStretching(const QImage& img)
+	{
+		float tmpR = 0, tmpG = 0, tmpB = 0;
+		maxR = 0; maxG = 0; maxB = 0;
+		minR = 255; minG = 255; minB = 255;
+		for (int x = 0; x < img.width(); x++)
+			for (int y = 0; y < img.height(); y++)
+			{
+				QColor color = img.pixelColor(x, y);
+				tmpR = color.red();
+				tmpG = color.green();
+				tmpB = color.blue();
+				if (tmpR > maxR)
+					maxR = tmpR;
+				if (tmpG > maxG)
+					maxG = tmpG;
+				if (tmpB > maxB)
+					maxB = tmpB;
+				if (tmpR < minR)
+					minR = tmpR;
+				if (tmpG < minG)
+					minG = tmpG;
+				if (tmpB < minB)
+					minB = tmpB;
+			}
 	}
+};
+
+// ----------------- Transfer -----------------//
+class Transfer : public Filter
+{
+protected:
+	int x1, y1;
+	
+public:
+	Transfer(int _x1 = 50, int _y1 = 0)
+	{
+		x1 = _x1;
+		y1 = _y1;
+	}
+	QColor calcNewPixelColor(const QImage& img, int x, int y) const override;
 	QImage process(const QImage& img);
+};
+
+// ----------------- Glass -----------------//
+class Glass : public Filter
+{
+protected:
 	QColor calcNewPixelColor(const QImage& img, int x, int y) const override;
 };
 
-// перенос
-class Transfer : public Filter {
-	QColor calcNewPixelColor(const QImage& img, int x, int y) const override;
-};
-
-// wave
-class Wave2 : public Filter {
-	QColor calcNewPixelColor(const QImage& img, int x, int y) const override;
-};
-
-// sharpness
-class SharpnessKernel : public Kernel {
+// ----------------- dilation, erosion, opening, closing-----------------//
+class DilationKernel : public Kernel
+{
 public:
 	using Kernel::Kernel;
-	SharpnessKernel(std::size_t radius = 1) : Kernel(radius) {
-		data[0] = -1; data[1] = -1; data[2] = -1;
-		data[3] = -1; data[4] = 9; data[5] = -1;
-		data[6] = -1; data[7] = -1; data[8] = -1;
+	DilationKernel(std::size_t radius = 1) : Kernel(radius)
+	{
+		for (int i = 0; i < getLen(); i++)
+			data[i] = 1;
 	}
 };
 
-class SharpnessFilter : public MatrixFilter {
+class ErosionKernel : public Kernel
+{
 public:
-	SharpnessFilter(std::size_t radius = 1) : MatrixFilter(SharpnessKernel(radius)) {}
+	using Kernel::Kernel;
+	ErosionKernel(std::size_t radius = 1) : Kernel(radius)
+	{
+		for (int i = 0; i < getLen(); i++)
+			data[i] = 1;
+	}
 };
 
-// оператор Щарра
+class OpeningKernel : public Kernel
+{
+public:
+	using Kernel::Kernel;
+	OpeningKernel(std::size_t radius = 1) : Kernel(radius)
+	{
+
+		for (int i = 0; i < getLen(); i++)
+			data[i] = 1;
+	}
+};
+
+class ClosingKernel : public Kernel
+{
+public:
+	using Kernel::Kernel;
+	ClosingKernel(std::size_t radius = 1) : Kernel(radius)
+	{
+		for (int i = 0; i < getLen(); i++)
+			data[i] = 1;
+	}
+};
+
+class Dilation : public MatrixFilter
+{
+protected:
+	QColor calcNewPixelColor(const QImage& img, int x, int y) const override;
+public:
+	Dilation(std::size_t radius = 1) :MatrixFilter(DilationKernel(radius)) {}
+	Dilation(Kernel& ker) : MatrixFilter(ker) {}
+};
+
+class Erosion : public MatrixFilter
+{
+protected:
+	QColor calcNewPixelColor(const QImage& img, int x, int y) const override;
+public:
+	Erosion(std::size_t radius = 1) : MatrixFilter(ErosionKernel(radius)) {}
+	Erosion(Kernel& ker) : MatrixFilter(ker) {}
+};
+
+class Opening : public MatrixFilter
+{
+protected:
+	QColor calcNewPixelColor(const QImage& img, int x, int y) const override;
+public:
+	Opening(std::size_t radius = 1) : MatrixFilter(OpeningKernel(radius)) {}
+	Opening(Kernel& ker) :MatrixFilter(ker) {}
+	QImage process(const QImage& img) const;
+};
+
+class Closing : public MatrixFilter
+{
+protected:
+	QColor calcNewPixelColor(const QImage& img, int x, int y) const override;
+public:
+	Closing(std::size_t radius = 1) : MatrixFilter(ClosingKernel(radius)) {}
+	Closing(Kernel& ker) :MatrixFilter(ker) {}
+	QImage process(const QImage& img) const;
+};
+
+
+
+// --------------- Grad ---------------//
+class GradKernel : public Kernel
+{
+public:
+	using Kernel::Kernel;
+	GradKernel(std::size_t radius = 1) : Kernel(radius)
+	{
+		for (int i = 0; i < getLen(); i++)
+			data[i] = 1;
+	}
+};
+
+class Grad : public MatrixFilter
+{
+protected:
+	QColor calcNewPixelColor(const QImage& img, int x, int y) const override;
+public:
+	Grad(std::size_t radius = 1) : MatrixFilter(GradKernel(radius)) {}
+	Grad(Kernel& ker) : MatrixFilter(ker) {}
+	QImage process(const QImage& img) const;
+};
+
+// --------------- Median ---------------//
+class MedianKernel : public Kernel
+{
+public:
+	using Kernel::Kernel;
+	MedianKernel(std::size_t radius = 1) : Kernel(radius)
+	{
+		for (int i = 0; i < getLen(); i++)
+			data[i] = 1;
+	}
+};
+
+class Median : public MatrixFilter
+{
+protected:
+	QColor calcNewPixelColor(const QImage& img, int x, int y) const override;
+public:
+	Median(std::size_t radius = 1) : MatrixFilter(MedianKernel(radius)) {}
+};
